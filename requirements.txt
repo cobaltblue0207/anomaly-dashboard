@@ -1,0 +1,10 @@
+# Core dependencies
+numpy
+pandas
+
+# FastAPI backend
+fastapi
+uvicorn[standard]
+
+# Environment management
+python-dotenv
