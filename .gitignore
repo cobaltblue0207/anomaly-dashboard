@@ -30,7 +30,7 @@ wheels/
 
 # Database
 *.db
-notes.db
+!notes.db
 
 # Jupyter Notebook
 .ipynb_checkpoints
