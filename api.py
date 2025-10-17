@@ -36,7 +36,6 @@ from db import init_db, init_filter_history_table, load_notes, save_note, load_n
 # Configuration from environment (V2 defaults)
 DATA_DIR = os.getenv("DATA_DIR", ".")  # Current directory (V2: frame_data.parquet 위치)
 CHART_DATA_DIR = os.getenv("CHART_DATA_DIR", "./chart_data")  # Chart data directory
-API_HOST = os.getenv("API_HOST", "115.136.116.145")
 API_PORT = int(os.getenv("API_PORT", "8050"))
 
 # Startup info
@@ -45,7 +44,6 @@ print("🚀 Starting Dashboard API Server")
 print("=" * 60)
 print(f"📂 DATA_DIR: {DATA_DIR}")
 print(f"📈 CHART_DATA_DIR: {CHART_DATA_DIR}")
-print(f"🌐 API_HOST: {API_HOST}")
 print(f"🔌 API_PORT: {API_PORT}")
 print("=" * 60)
 
@@ -408,4 +406,4 @@ def get_chart_data_batch(req: ChartDataRequest) -> Dict[str, Dict]:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host=API_HOST, port=API_PORT)
+    uvicorn.run(app, host="115.136.116.13", port=API_PORT)

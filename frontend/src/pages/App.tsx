@@ -246,6 +246,23 @@ export function App() {
     <>
       {showUserIdModal && <UserIdModal onSubmit={handleUserIdSubmit} />}
       
+      {/* Chart Activation Guide */}
+      <div style={{
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        background: "var(--bg-card)",
+        color: "var(--text-secondary)",
+        padding: "8px 16px",
+        borderRadius: "6px",
+        fontSize: 12,
+        border: "1px solid var(--border-color)",
+        zIndex: 1000,
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)"
+      }}>
+        💡 Click on any chart to activate zoom/pan controls
+      </div>
+      
       {/* Scroll to Top Button */}
       {showScrollTop && (
         <button

@@ -5,7 +5,7 @@ import glob
 import os
 import time
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -515,8 +515,16 @@ def load_chart_data_single(master_task_id: str, days: int = 60, chart_data_dir: 
     if os.path.exists(individual_file):
         try:
             df = pd.read_parquet(individual_file)
-            # Filter and return last N days
-            df = df.tail(days)
+            # Convert act_date to datetime if it's not already
+            df["act_date"] = pd.to_datetime(df["act_date"])
+            
+            # Get the maximum date and filter for the last N days
+            max_date = df["act_date"].max()
+            min_date = max_date - pd.Timedelta(days=days-1)
+            
+            # Filter data for the specified date range
+            df = df[df["act_date"] >= min_date].sort_values(by="act_date", ascending=False)
+            
             return {
                 "act_date": df["act_date"].astype(str).tolist(),
                 "value": df["value"].tolist(),
@@ -533,14 +541,25 @@ def load_chart_data_single(master_task_id: str, days: int = 60, chart_data_dir: 
         try:
             df = pd.read_parquet(combined_file)
             df = df[df["master_task_id"] == master_task_id]
-            df = df.tail(days)
+            
             if len(df) > 0:
-                return {
-                    "act_date": df["act_date"].astype(str).tolist(),
-                    "value": df["value"].tolist(),
-                    "spec_lower": df["spec_lower"].tolist() if "spec_lower" in df.columns else [None] * len(df),
-                    "spec_upper": df["spec_upper"].tolist() if "spec_upper" in df.columns else [None] * len(df),
-                }
+                # Convert act_date to datetime if it's not already
+                df["act_date"] = pd.to_datetime(df["act_date"])
+                
+                # Get the maximum date and filter for the last N days
+                max_date = df["act_date"].max()
+                min_date = max_date - pd.Timedelta(days=days-1)
+                
+                # Filter data for the specified date range
+                df = df[df["act_date"] >= min_date]
+                
+                if len(df) > 0:
+                    return {
+                        "act_date": df["act_date"].astype(str).tolist(),
+                        "value": df["value"].tolist(),
+                        "spec_lower": df["spec_lower"].tolist() if "spec_lower" in df.columns else [None] * len(df),
+                        "spec_upper": df["spec_upper"].tolist() if "spec_upper" in df.columns else [None] * len(df),
+                    }
         except Exception as e:
             logger.error(f"Error loading chart data from combined file for {master_task_id}: {e}")
     

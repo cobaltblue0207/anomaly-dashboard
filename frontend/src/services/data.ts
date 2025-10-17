@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const default_api_base = import.meta?.env?.VITE_API_BASE_URL ?? "http://115.136.116.145:8050";
+const default_api_base = import.meta?.env?.VITE_API_BASE_URL ?? "http://115.136.116.13:8050";
 const api = axios.create({ baseURL: default_api_base });
 
 export interface Filters {

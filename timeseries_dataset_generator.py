@@ -34,7 +34,7 @@ class GeneratorConfig:
     start_date: datetime
     days: int = 60                    # 60일 데이터 (V2)
     freq: str = "1D"                  # 일별 데이터 (V2) - "30T"로 변경하면 30분마다
-    points_per_day: Optional[int] = None  # 하루당 타점 개수 (None이면 freq 사용)
+    points_per_day: Optional[int] = 834  # 하루당 타점 개수 (50,000 / 60 = 833.33, 834로 반올림)
     num_tasks: int = 100              # 생성할 task 개수
     random_seed: Optional[int] = 42
 
@@ -234,10 +234,14 @@ class TimeSeriesDataGenerator:
             frame_row = self.generate_frame_row(task_id)
             frame_rows.append(frame_row)
             
-            # 2. Chart 데이터 생성 및 저장
-            chart_df = self.generate_chart_data(master_task_id)
+            # 2. Chart 데이터 생성 및 저장 (기존 파일이 없을 때만)
             chart_file = os.path.join(chart_output_dir, f"{master_task_id}.parquet")
-            chart_df.to_parquet(chart_file, index=False)
+            if not os.path.exists(chart_file):
+                chart_df = self.generate_chart_data(master_task_id)
+                chart_df.to_parquet(chart_file, index=False)
+                print(f"Generated: {master_task_id}.parquet")
+            else:
+                print(f"Skipped (exists): {master_task_id}.parquet")
         
         # Frame 데이터를 DataFrame으로 변환 및 저장
         df_frame = pd.DataFrame(frame_rows)
@@ -276,19 +280,18 @@ if __name__ == "__main__":
     #     random_seed=42
     # )
     
-    # Option 2: 일별 50~100개 타점 (랜덤)
-    points_per_day = random.randint(50, 100)
+    # Option 2: 일별 833개 타점 (50,000 / 60 = 833)
     cfg = GeneratorConfig(
         start_date=datetime(2024, 12, 10, 0, 0, 0),
         days=60,
         freq="1D",  # points_per_day 사용 시 무시됨
-        points_per_day=points_per_day,  # 하루당 타점 개수
+        points_per_day=834,  # 하루당 타점 개수 (50,000 / 60 = 833.33, 834로 반올림)
         num_tasks=100,  # 테스트용 100개
         random_seed=42
     )
     
-    print(f"📊 Points per day: {points_per_day}")
-    print(f"📊 Total points per task: {60 * points_per_day}")
+    print(f"📊 Points per day: {cfg.points_per_day}")
+    print(f"📊 Total points per task: {60 * cfg.points_per_day}")
     
     gen = TimeSeriesDataGenerator(cfg)
     
