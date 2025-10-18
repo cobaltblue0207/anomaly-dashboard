@@ -187,21 +187,6 @@ export const LazyChart = React.memo(({
       )}
       
       {/* Click to activate hint - only show when all charts are completed */}
-      {isAllChartsCompleted && !isInteractive && (
-        <div style={{
-          position: "absolute",
-          top: 4,
-          left: 4,
-          background: "rgba(0,0,0,0.7)",
-          color: "white",
-          padding: "2px 6px",
-          borderRadius: "3px",
-          fontSize: 10,
-          zIndex: 10
-        }}>
-          Click STATIC to activate
-        </div>
-      )}
       
       <ReactECharts
         ref={chartRef}

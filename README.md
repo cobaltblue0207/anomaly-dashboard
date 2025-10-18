@@ -2,6 +2,15 @@
 
 A comprehensive web application for analyzing time series data with anomaly detection capabilities, featuring interactive charts, data filtering, and collaborative note-taking functionality.
 
+## 🆕 Latest Updates
+
+- **Clean UI**: Removed unnecessary "Click STATIC to activate" text for cleaner interface
+- **Optimized Performance**: Removed ETL time check code from backend for better performance
+- **Enhanced Notes**: Multi-line notes with auto-save and user attribution
+- **Excel Export**: Fixed column ordering and integrated Notes data
+- **Column Management**: Drag-and-drop column reordering and pinning
+- **Chart Loading**: Lazy loading with progress tracking
+
 ## 🏗️ Architecture Overview
 
 This project consists of a **FastAPI backend** and a **React TypeScript frontend** that work together to provide a powerful data analysis platform.
@@ -83,8 +92,9 @@ The frontend will be available at `http://localhost:5173`
 ### 📊 Interactive Data Visualization
 - **Time Series Charts**: 30-day and 60-day interactive charts using ECharts
 - **Lazy Loading**: Charts load on-demand for better performance
-- **Interactive Mode**: Click to activate zoom/pan controls
+- **Interactive Mode**: Click STATIC button to activate zoom/pan controls
 - **Static Mode**: Fast rendering for overview
+- **Clean Interface**: Streamlined UI without unnecessary text overlays
 
 ### 🔍 Advanced Filtering
 - **Multi-dimensional Filters**: Line, Area, Equipment, Parameter filtering
