@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { fetchOptions, queryData } from "../services/data";
 import { DashboardTable } from "../components/DashboardTable";
 import { UserIdModal } from "../components/UserIdModal";
+import { themes, applyTheme, getInitialTheme } from "../utils/themes";
+import { useOptimizedDataQuery, useCachePerformance } from "../utils/cacheStrategy";
 
 export function App() {
   // Session User ID management
@@ -63,29 +65,111 @@ export function App() {
   }, [options]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
+  
+  // Chart progress state
+  const [chartProgress, setChartProgress] = useState({
+    isLoading: false,
+    progress: 0,
+    loadedCharts: 0,
+    totalCharts: 0,
+    isCompleted: false,
+    hasCachedCharts: false
+  });
+  
+
+  // onProgressChange 핸들러
+  const handleProgressChange = useCallback((progress: {
+    isLoading: boolean;
+    progress: number;
+    loadedCharts: number;
+    totalCharts: number;
+    isCompleted: boolean;
+    hasCachedCharts: boolean;
+  }) => {
+    setChartProgress(prev => ({
+      ...prev,
+      progress: progress.progress,
+      loadedCharts: progress.loadedCharts,
+      totalCharts: progress.totalCharts,
+      isCompleted: progress.isCompleted,
+      hasCachedCharts: progress.hasCachedCharts
+    }));
+  }, []);
 
   const canQuery = !!options && !!submitted && !!sessionUserId;
   
   // V2 Schema: Use "ALL" as default pattern for notes loading
   const currentPattern = "ALL";
   
-  const { data, isFetching, isError } = useQuery({
-    queryKey: ["rows", submitted, page, pageSize, sessionUserId, submitted?.user_id],
-    queryFn: () =>
-      queryData({
-        filters: { ...submitted!, line: submitted!.line.join(",") },
-        page,
-        page_size: pageSize,
-        user_id: submitted?.user_id || sessionUserId || undefined,
-        pattern: currentPattern,
-      }),
-    enabled: canQuery,
-    refetchOnWindowFocus: false,
+  // 최적화된 캐싱 사용
+  const { 
+    allData, 
+    isLoadingAll, 
+    isErrorAll, 
+    getCachedPageData, 
+    getCacheStatus 
+  } = useOptimizedDataQuery({
+    filters: submitted || form,
+    pageSize,
+    sessionUserId: sessionUserId || "",
+    user_id: sessionUserId || "", // sessionUserId를 user_id로 사용
+    pattern: currentPattern,
   });
+
+  // 현재 페이지 데이터 (캐시 우선)
+  const data = useMemo(() => {
+    if (!submitted) return null;
+    const pageData = getCachedPageData(page, pageSize);
+    if (!pageData) return null;
+    
+    
+    // metrics와 notes 속성 추가 (기존 API 응답 구조 유지)
+    const startRow = (page - 1) * pageSize + 1;
+    const endRow = Math.min(page * pageSize, pageData.total_count);
+    
+    return {
+      ...pageData,
+      metrics: {
+        rows_total: pageData.total_count,
+        rows_page: endRow, // 현재 페이지의 마지막 행 번호
+        rows_start: startRow, // 현재 페이지의 시작 행 번호
+        total_ms: 0, // 캐시된 데이터이므로 0
+      },
+      notes: pageData.notes || {}, // 캐시된 notes 데이터 사용
+    };
+  }, [submitted, page, pageSize, getCachedPageData]);
+
+
+  // 데이터가 로드되면 즉시 차트 로딩 시작
+  useEffect(() => {
+    if (data?.rows && data.rows.length > 0) {
+      setChartProgress(prev => {
+        // 이미 로딩 중이면 상태 변경하지 않음
+        if (prev.isLoading) {
+          return prev;
+        }
+        // V2 스키마 (메인 스키마)
+        const expectedCharts = data.rows.length * 2; // 30D + 60D 차트
+        
+        return {
+          ...prev,
+          isLoading: true,
+          totalCharts: expectedCharts
+        };
+      });
+    }
+  }, [data?.rows]);
+
+  const isFetching = isLoadingAll;
+  const isError = isErrorAll;
 
   const updateLines = (values: string[]) => {
     setForm((f) => ({ ...f, line: values }));
   };
+
+  // 캐시 성능 모니터링
+  const { getCacheStats } = useCachePerformance();
+  const cacheStatus = getCacheStatus();
 
   // Scroll to top handler
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -103,165 +187,18 @@ export function App() {
   };
 
   // Theme management
-  const [currentTheme, setCurrentTheme] = useState(() => {
-    return localStorage.getItem('dashboard_theme') || '봄';
-  });
-
-  const themes = {
-    '봄': {
-      primary: '#ec4899',      // Pink
-      secondary: '#f472b6',
-      accent: '#fbbf24',       // Yellow
-      bgMain: '#fdf2f8',
-      bgCard: '#ffffff',
-      textPrimary: '#831843',
-    },
-    '여름': {
-      primary: '#06b6d4',      // Cyan
-      secondary: '#0ea5e9',
-      accent: '#fbbf24',
-      bgMain: '#ecfeff',
-      bgCard: '#ffffff',
-      textPrimary: '#164e63',
-    },
-    '가을': {
-      primary: '#f97316',      // Orange
-      secondary: '#fb923c',
-      accent: '#facc15',
-      bgMain: '#fff7ed',
-      bgCard: '#ffffff',
-      textPrimary: '#7c2d12',
-    },
-    '겨울': {
-      primary: '#3b82f6',      // Blue (default)
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      bgMain: '#f8fafc',
-      bgCard: '#ffffff',
-      textPrimary: '#0f172a',
-    },
-    '블랙': {
-      primary: '#a78bfa',
-      secondary: '#c084fc',
-      accent: '#fbbf24',
-      bgMain: '#0f172a',
-      bgCard: '#1e293b',
-      textPrimary: '#f1f5f9',
-    },
-    'Nord': {
-      primary: '#88c0d0',      // Nord Frost
-      secondary: '#81a1c1',
-      accent: '#ebcb8b',       // Nord Yellow
-      bgMain: '#2e3440',       // Nord Polar Night
-      bgCard: '#3b4252',
-      textPrimary: '#eceff4',  // Nord Snow Storm
-    },
-    'Dracula': {
-      primary: '#bd93f9',      // Purple
-      secondary: '#ff79c6',    // Pink
-      accent: '#f1fa8c',       // Yellow
-      bgMain: '#282a36',
-      bgCard: '#44475a',
-      textPrimary: '#f8f8f2',
-    },
-    'Monokai': {
-      primary: '#66d9ef',      // Cyan
-      secondary: '#a6e22e',    // Green
-      accent: '#fd971f',       // Orange
-      bgMain: '#272822',
-      bgCard: '#3e3d32',
-      textPrimary: '#f8f8f2',
-    },
-    'Solarized': {
-      primary: '#268bd2',      // Blue
-      secondary: '#2aa198',    // Cyan
-      accent: '#b58900',       // Yellow
-      bgMain: '#fdf6e3',       // Light background
-      bgCard: '#eee8d5',
-      textPrimary: '#073642',
-    },
-    'GitHub': {
-      primary: '#0969da',      // GitHub Blue
-      secondary: '#8250df',    // Purple
-      accent: '#bf8700',       // Yellow
-      bgMain: '#ffffff',
-      bgCard: '#f6f8fa',
-      textPrimary: '#1f2328',
-    },
-    'Ocean': {
-      primary: '#1e40af',      // Deep Blue
-      secondary: '#0891b2',    // Teal
-      accent: '#06b6d4',       // Cyan
-      bgMain: '#f0f9ff',
-      bgCard: '#ffffff',
-      textPrimary: '#0c4a6e',
-    },
-  };
-
-  const applyTheme = (themeName: string) => {
-    const theme = themes[themeName as keyof typeof themes];
-    if (theme) {
-      document.documentElement.style.setProperty('--primary', theme.primary);
-      document.documentElement.style.setProperty('--secondary', theme.secondary);
-      document.documentElement.style.setProperty('--accent', theme.accent);
-      document.documentElement.style.setProperty('--bg-main', theme.bgMain);
-      document.documentElement.style.setProperty('--bg-card', theme.bgCard);
-      document.documentElement.style.setProperty('--text-primary', theme.textPrimary);
-      
-      // 다크 테마들 추가 스타일 조정
-      const darkThemes = ['블랙', 'Nord', 'Dracula', 'Monokai'];
-      if (darkThemes.includes(themeName)) {
-        document.documentElement.style.setProperty('--bg-input', '#334155');
-        document.documentElement.style.setProperty('--bg-secondary', '#334155');
-        document.documentElement.style.setProperty('--bg-hover', '#475569');
-        document.documentElement.style.setProperty('--border-color', '#475569');
-        document.documentElement.style.setProperty('--text-secondary', '#cbd5e1');
-        document.documentElement.style.setProperty('--text-muted', '#94a3b8');
-        document.documentElement.style.setProperty('--success-color', '#10b981');
-        document.documentElement.style.setProperty('--error-color', '#ef4444');
-        // 테이블 셀 배경을 다크 테마로
-        document.body.style.setProperty('--cell-bg', theme.bgCard);
-      } else {
-        document.documentElement.style.setProperty('--bg-input', '#f1f5f9');
-        document.documentElement.style.setProperty('--bg-secondary', '#f1f5f9');
-        document.documentElement.style.setProperty('--bg-hover', '#f0f9ff');
-        document.documentElement.style.setProperty('--border-color', '#e2e8f0');
-        document.documentElement.style.setProperty('--text-secondary', '#64748b');
-        document.documentElement.style.setProperty('--text-muted', '#94a3b8');
-        document.documentElement.style.setProperty('--success-color', '#10b981');
-        document.documentElement.style.setProperty('--error-color', '#ef4444');
-        document.body.style.setProperty('--cell-bg', '#ffffff');
-      }
-      
-      setCurrentTheme(themeName);
-      localStorage.setItem('dashboard_theme', themeName);
-    }
-  };
+  const [currentTheme, setCurrentTheme] = useState(getInitialTheme);
 
   useEffect(() => {
     applyTheme(currentTheme);
-  }, []);
+  }, [currentTheme]);
 
   return (
     <>
       {showUserIdModal && <UserIdModal onSubmit={handleUserIdSubmit} />}
       
-      {/* Chart Activation Guide */}
-      <div style={{
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        background: "var(--bg-card)",
-        color: "var(--text-secondary)",
-        padding: "8px 16px",
-        borderRadius: "6px",
-        fontSize: 12,
-        border: "1px solid var(--border-color)",
-        zIndex: 1000,
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)"
-      }}>
-        💡 Click on any chart to activate zoom/pan controls
-      </div>
+      
+      
       
       {/* Scroll to Top Button */}
       {showScrollTop && (
@@ -331,7 +268,11 @@ export function App() {
           </button>
           <select
             value={currentTheme}
-            onChange={(e) => applyTheme(e.target.value)}
+            onChange={(e) => {
+              const newTheme = e.target.value;
+              setCurrentTheme(newTheme);
+              applyTheme(newTheme);
+            }}
             style={{
               padding: "10px 14px",
               fontSize: 14,
@@ -440,7 +381,13 @@ export function App() {
         </label>
         <label>
           Page Size
-          <select value={pageSize} onChange={(e) => setPageSize(parseInt(e.target.value))}>
+          <select 
+            value={pageSize} 
+            onChange={(e) => {
+              setPageSize(parseInt(e.target.value));
+              setPage(1); // 페이지 크기 변경 시 첫 페이지로 이동
+            }}
+          >
             {[30, 40, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n}
@@ -449,14 +396,18 @@ export function App() {
           </select>
         </label>
         <div className="run-btn-wrapper">
-          <button className="run-btn" onClick={() => { setSubmitted(form); setPage(1); }}>
+          <button 
+            className="run-btn" 
+            onClick={() => { setSubmitted(form); setPage(1); }}
+          >
             Run
           </button>
         </div>
       </div>
 
-      <div style={{ margin: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div style={{ margin: "14px 0", display: "flex", alignItems: "center", gap: "16px" }}>
+        {/* Left side - Control buttons */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
           <button
             className="control-btn"
             onClick={() => {
@@ -471,6 +422,7 @@ export function App() {
             className="control-btn"
             onClick={() => {
               // Trigger export in DashboardTable
+              console.log('Export to Excel button clicked');
               const event = new CustomEvent('exportToExcel');
               window.dispatchEvent(event);
             }}
@@ -482,16 +434,26 @@ export function App() {
           >
             📊 Export to Excel
           </button>
-          <div style={{ color: "var(--text-secondary)", fontSize: 14, marginLeft: 8 }}>
-            Showing {data?.metrics?.rows_page ?? 0} of {data?.metrics?.rows_total ?? 0}
+          <div style={{ color: "var(--text-secondary)", fontSize: 14, whiteSpace: "nowrap" }}>
+            Showing {data?.metrics?.rows_start ?? 0}-{data?.metrics?.rows_page ?? 0} of {data?.metrics?.rows_total ?? 0}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+
+        {/* Center - Empty space (progress bar removed) */}
+        <div style={{ flex: 1, minWidth: 0 }}></div>
+
+        {/* Right side - Pagination buttons */}
+        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
           <button
             className="primary-btn"
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            style={{ background: "rgba(37,99,235,0.12)", color: "var(--accent)" }}
+            style={{ 
+              background: "rgba(37,99,235,0.12)", 
+              color: "var(--accent)",
+              opacity: page <= 1 ? 0.6 : 1,
+              cursor: page <= 1 ? 'not-allowed' : 'pointer'
+            }}
           >
             Prev
           </button>
@@ -502,7 +464,12 @@ export function App() {
             className="primary-btn"
             disabled={(data?.page ?? 1) >= (data?.total_pages ?? 1)}
             onClick={() => setPage((p) => p + 1)}
-            style={{ background: "rgba(37,99,235,0.12)", color: "var(--accent)" }}
+            style={{ 
+              background: "rgba(37,99,235,0.12)", 
+              color: "var(--accent)",
+              opacity: (data?.page ?? 1) >= (data?.total_pages ?? 1) ? 0.6 : 1,
+              cursor: (data?.page ?? 1) >= (data?.total_pages ?? 1) ? 'not-allowed' : 'pointer'
+            }}
           >
             Next
           </button>
@@ -586,11 +553,13 @@ export function App() {
           <DashboardTable 
             rows={data?.rows ?? []} 
             sessionUserId={sessionUserId || ""}
-            filterUserId={submitted?.user_id || ""}
+            filterUserId={sessionUserId || ""}
             notesData={data?.notes}
+            onProgressChange={handleProgressChange}
           />
         </div>
       )}
+
     </div>
     </>
   );

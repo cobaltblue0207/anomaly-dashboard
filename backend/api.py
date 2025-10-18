@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Dict, List, Optional
-import time
 import numpy as np
 import os
 import logging
@@ -35,17 +34,17 @@ from db import init_db, init_filter_history_table, load_notes, save_note, load_n
 
 # Configuration from environment (V2 defaults)
 DATA_DIR = os.getenv("DATA_DIR", ".")  # Current directory (V2: frame_data.parquet 위치)
-CHART_DATA_DIR = os.getenv("CHART_DATA_DIR", "./chart_data")  # Chart data directory
+CHART_DATA_DIR = os.getenv("CHART_DATA_DIR", "./temp/chart_data")  # Chart data directory
 API_PORT = int(os.getenv("API_PORT", "8050"))
 
 # Startup info
-print("=" * 60)
-print("🚀 Starting Dashboard API Server")
-print("=" * 60)
-print(f"📂 DATA_DIR: {DATA_DIR}")
-print(f"📈 CHART_DATA_DIR: {CHART_DATA_DIR}")
-print(f"🔌 API_PORT: {API_PORT}")
-print("=" * 60)
+logger.info("=" * 60)
+logger.info("🚀 Starting Dashboard API Server")
+logger.info("=" * 60)
+logger.info(f"📂 DATA_DIR: {DATA_DIR}")
+logger.info(f"📈 CHART_DATA_DIR: {CHART_DATA_DIR}")
+logger.info(f"🔌 API_PORT: {API_PORT}")
+logger.info("=" * 60)
 
 
 class Filters(BaseModel):
@@ -150,10 +149,8 @@ def get_filters_options() -> Dict[str, List[str]]:
 
 @app.post("/data/query", response_model=QueryResponse)
 def data_query(req: QueryRequest) -> JSONResponse:
-    t0 = time.perf_counter()
-    
     try:
-        filters_dict = req.filters.dict()
+        filters_dict = req.filters.model_dump()
         
         # Handle comma-separated line filter (multi-select support)
         if "line" in filters_dict and isinstance(filters_dict["line"], str):
@@ -165,7 +162,6 @@ def data_query(req: QueryRequest) -> JSONResponse:
         logger.error("Error loading parquet data", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Data loading failed: {str(e)}")
     if df.empty:
-        total_ms = (time.perf_counter() - t0) * 1000.0
         return QueryResponse(
             rows=[],
             page=req.page,
@@ -173,20 +169,17 @@ def data_query(req: QueryRequest) -> JSONResponse:
             total=0,
             total_pages=0,
             metrics=QueryMetrics(
-                load_ms=total_ms,
+                load_ms=0.0,
                 filter_ms=0.0,
                 aggregate_ms=0.0,
                 paginate_ms=0.0,
-                total_ms=total_ms,
+                total_ms=0.0,
                 rows_total=0,
                 rows_page=0
             )
         )
-    t1 = time.perf_counter()
     df = filter_parquet_data(df, filters_dict)
-    t2 = time.perf_counter()
     rows = get_unique_combinations(df)
-    t3 = time.perf_counter()
     # server-side lightweight downsampling to limit payload size
     MAX_POINTS = 4000
     for r in rows:
@@ -200,7 +193,6 @@ def data_query(req: QueryRequest) -> JSONResponse:
 
     total = len(rows)
     if total == 0:
-        total_ms = (time.perf_counter() - t0) * 1000.0
         return QueryResponse(
             rows=[],
             page=req.page,
@@ -208,11 +200,11 @@ def data_query(req: QueryRequest) -> JSONResponse:
             total=0,
             total_pages=0,
             metrics=QueryMetrics(
-                load_ms=(t1 - t0) * 1000.0,
-                filter_ms=(t2 - t1) * 1000.0,
-                aggregate_ms=(t3 - t2) * 1000.0,
+                load_ms=0.0,
+                filter_ms=0.0,
+                aggregate_ms=0.0,
                 paginate_ms=0.0,
-                total_ms=total_ms,
+                total_ms=0.0,
                 rows_total=0,
                 rows_page=0
             )
@@ -224,7 +216,6 @@ def data_query(req: QueryRequest) -> JSONResponse:
     start = (page - 1) * page_size
     end = start + page_size
     rows_page = rows[start:end]
-    t4 = time.perf_counter()
 
     # Load notes if user_id is provided
     notes_data = None
@@ -263,7 +254,6 @@ def data_query(req: QueryRequest) -> JSONResponse:
                         }
                         for vid, note_tuple in notes_dict.items()
                     }
-    t5 = time.perf_counter()
 
     payload = QueryResponse(
         rows=rows_page,
@@ -273,11 +263,11 @@ def data_query(req: QueryRequest) -> JSONResponse:
         total_pages=total_pages,
         notes=notes_data,
         metrics=QueryMetrics(
-            load_ms=(t1 - t0) * 1000.0,
-            filter_ms=(t2 - t1) * 1000.0,
-            aggregate_ms=(t3 - t2) * 1000.0,
-            paginate_ms=(t5 - t4) * 1000.0,
-            total_ms=(t5 - t0) * 1000.0,
+            load_ms=0.0,
+            filter_ms=0.0,
+            aggregate_ms=0.0,
+            paginate_ms=0.0,
+            total_ms=0.0,
             rows_total=total,
             rows_page=len(rows_page),
         )

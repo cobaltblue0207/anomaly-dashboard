@@ -1,42 +1,27 @@
 import ExcelJS from 'exceljs';
 
-export async function exportToExcel(rows: any[], sessionUserId: string) {
+export async function exportToExcel(rows: any[], sessionUserId: string, notesData?: Record<string, any>) {
   try {
     // Create workbook and worksheet
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Sheet1');
 
-    // Detect schema version
-    const isV2 = rows.length > 0 && "MASTER_TASK_ID" in rows[0];
-
-    // Define columns based on schema version
-    if (isV2) {
+    // V2 스키마 (메인 스키마)
       worksheet.columns = [
         { header: 'MASTER_TASK_ID', key: 'MASTER_TASK_ID', width: 35 },
         { header: 'LINE', key: 'LINE', width: 12 },
         { header: 'AREA', key: 'AREA', width: 12 },
         { header: 'Equipment', key: 'PROD_EQP_ID', width: 15 },
         { header: 'Parameter', key: 'PARAM_SUBITEM', width: 40 },
-        { header: '30D Chart', key: 'chart_30d', width: 60 },
-        { header: '60D Chart', key: 'chart_60d', width: 60 },
         { header: 'PPID', key: 'PPID', width: 20 },
         { header: 'Recipe', key: 'RECIPEID', width: 20 },
         { header: 'Step', key: 'CH_STEP', width: 20 },
         { header: 'Model Result', key: 'MODEL_RESULT_INFO', width: 30 },
         { header: 'Comments', key: 'COMMENTS', width: 40 },
+        { header: '30D Chart', key: 'chart_30d', width: 60 },
+        { header: '60D Chart', key: 'chart_60d', width: 60 },
         { header: 'Notes', key: 'notes', width: 50 },
       ];
-    } else {
-      // Legacy schema
-      worksheet.columns = [
-        { header: 'Variant ID', key: 'variant_id', width: 35 },
-        { header: 'Chart', key: 'chart', width: 60 },
-        { header: 'Informations', key: 'informations', width: 45 },
-        { header: 'Pattern', key: 'pattern', width: 20 },
-        { header: 'Model Result', key: 'model_result', width: 15 },
-        { header: 'Notes', key: 'notes', width: 50 },
-      ];
-    }
 
     // Style header row
     worksheet.getRow(1).font = { bold: true, size: 12 };
@@ -60,73 +45,60 @@ export async function exportToExcel(rows: any[], sessionUserId: string) {
       // Set row height for image first
       worksheet.getRow(rowNumber).height = 200; // ~267 pixels
 
-      // Get variant ID for chart lookup (V2: MASTER_TASK_ID, Legacy: variant_id)
-      const variantId = isV2 ? (row.MASTER_TASK_ID || row.variant_id) : row.variant_id;
+      // Get variant ID for chart lookup
+      const variantId = row.MASTER_TASK_ID || row.variant_id;
 
       // Add text data directly to cells (not using addRow to avoid row shifting)
-      if (isV2) {
         const cellAlignment = { vertical: 'middle' as const, horizontal: 'center' as const };
         
+        // 1. MASTER_TASK_ID
         worksheet.getCell(rowNumber, 1).value = row.MASTER_TASK_ID || '';
         worksheet.getCell(rowNumber, 1).alignment = cellAlignment;
         
+        // 2. LINE
         worksheet.getCell(rowNumber, 2).value = row.LINE || '';
         worksheet.getCell(rowNumber, 2).alignment = cellAlignment;
         
+        // 3. AREA
         worksheet.getCell(rowNumber, 3).value = row.AREA || '';
         worksheet.getCell(rowNumber, 3).alignment = cellAlignment;
         
+        // 4. Equipment (PROD_EQP_ID)
         worksheet.getCell(rowNumber, 4).value = row.PROD_EQP_ID || '';
         worksheet.getCell(rowNumber, 4).alignment = cellAlignment;
         
+        // 5. Parameter (PARAM_SUBITEM)
         worksheet.getCell(rowNumber, 5).value = row.PARAM_SUBITEM || '';
         worksheet.getCell(rowNumber, 5).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 6).value = ''; // 30D Chart column (will be replaced with image)
+        // 6. PPID
+        worksheet.getCell(rowNumber, 6).value = row.PPID || '';
         worksheet.getCell(rowNumber, 6).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 7).value = ''; // 60D Chart column (will be replaced with image)
+        // 7. Recipe (RECIPEID)
+        worksheet.getCell(rowNumber, 7).value = row.RECIPEID || '';
         worksheet.getCell(rowNumber, 7).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 8).value = row.PPID || '';
+        // 8. Step (CH_STEP)
+        worksheet.getCell(rowNumber, 8).value = row.CH_STEP || '';
         worksheet.getCell(rowNumber, 8).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 9).value = row.RECIPEID || '';
+        // 9. Model Result (MODEL_RESULT_INFO)
+        worksheet.getCell(rowNumber, 9).value = row.MODEL_RESULT_INFO || '';
         worksheet.getCell(rowNumber, 9).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 10).value = row.CH_STEP || '';
+        // 10. Comments (COMMENTS)
+        worksheet.getCell(rowNumber, 10).value = row.COMMENTS || '';
         worksheet.getCell(rowNumber, 10).alignment = cellAlignment;
         
-        const modelResult = String(row.MODEL_RESULT_INFO || '').toUpperCase().includes('TRUE') ? 'TRUE' : 'FALSE';
-        worksheet.getCell(rowNumber, 11).value = modelResult;
+        // 11. 30D Chart (will be replaced with image)
+        worksheet.getCell(rowNumber, 11).value = '';
         worksheet.getCell(rowNumber, 11).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 12).value = row.COMMENTS || '';
+        // 12. 60D Chart (will be replaced with image)
+        worksheet.getCell(rowNumber, 12).value = '';
         worksheet.getCell(rowNumber, 12).alignment = cellAlignment;
         
-        worksheet.getCell(rowNumber, 13).value = row.notes || '';
-        worksheet.getCell(rowNumber, 13).alignment = cellAlignment;
-      } else {
-        const cellAlignment = { vertical: 'middle' as const, horizontal: 'center' as const };
-        
-        worksheet.getCell(rowNumber, 1).value = row.variant_id || '';
-        worksheet.getCell(rowNumber, 1).alignment = cellAlignment;
-        
-        worksheet.getCell(rowNumber, 2).value = ''; // Will be replaced with image
-        worksheet.getCell(rowNumber, 2).alignment = cellAlignment;
-        
-        worksheet.getCell(rowNumber, 3).value = row.info_text || '';
-        worksheet.getCell(rowNumber, 3).alignment = cellAlignment;
-        
-        worksheet.getCell(rowNumber, 4).value = row.tag || '';
-        worksheet.getCell(rowNumber, 4).alignment = cellAlignment;
-        
-        worksheet.getCell(rowNumber, 5).value = row.model_result ? 'TRUE' : 'FALSE';
-        worksheet.getCell(rowNumber, 5).alignment = cellAlignment;
-        
-        worksheet.getCell(rowNumber, 6).value = row.notes || '';
-        worksheet.getCell(rowNumber, 6).alignment = cellAlignment;
-      }
 
       // Helper function to add chart image
       const addChartImage = (chartSelector: string, colIndex: number) => {
@@ -184,51 +156,43 @@ export async function exportToExcel(rows: any[], sessionUserId: string) {
         }
       };
 
-      // Add chart images based on schema version
-      if (isV2) {
-        // V2: Add both 30D and 60D charts
-        const success30d = addChartImage(`${variantId}-30d`, 5); // Column F (0-indexed)
-        const success60d = addChartImage(`${variantId}-60d`, 6); // Column G (0-indexed)
+      // Add chart images (30D and 60D charts)
+      const success30d = addChartImage(`${variantId}-30d`, 10); // Column 11 (0-indexed)
+      const success60d = addChartImage(`${variantId}-60d`, 11); // Column 12 (0-indexed)
+      
+      if (!success30d) {
+        worksheet.getCell(rowNumber, 11).value = 'Chart export failed';
+      }
+      if (!success60d) {
+        worksheet.getCell(rowNumber, 12).value = 'Chart export failed';
+      }
+
+      // Add Notes data with proper formatting
+      if (notesData && variantId && notesData[variantId]) {
+        const noteData = notesData[variantId];
+        let noteText = '';
         
-        if (!success30d) {
-          worksheet.getCell(rowNumber, 6).value = 'Chart export failed';
+        if (typeof noteData === 'object' && noteData.note) {
+          noteText = noteData.note;
+        } else if (typeof noteData === 'string') {
+          noteText = noteData;
         }
-        if (!success60d) {
-          worksheet.getCell(rowNumber, 7).value = 'Chart export failed';
-        }
-      } else {
-        // Legacy: Add single chart
-        const success = addChartImage(variantId, 1); // Column B (0-indexed)
-        if (!success) {
-          worksheet.getCell(rowNumber, 2).value = 'Chart export failed';
+        
+        // Apply line breaks and preserve formatting
+        if (noteText) {
+          // Replace \n with actual line breaks for Excel
+          const formattedNote = noteText.replace(/\n/g, '\n');
+          worksheet.getCell(rowNumber, 13).value = formattedNote; // Notes column (13th column, 0-indexed)
+          
+          // Set cell alignment for better readability
+          worksheet.getCell(rowNumber, 13).alignment = {
+            vertical: 'top',
+            horizontal: 'left',
+            wrapText: true
+          };
         }
       }
 
-      // Apply alignment to cells with data only (vertical: middle, horizontal: center)
-      // Column 1: variant_id
-      if (row.variant_id) {
-        worksheet.getCell(rowNumber, 1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      }
-      
-      // Column 2: chart - no text alignment (image only)
-      
-      // Column 3: informations
-      if (row.info_text) {
-        worksheet.getCell(rowNumber, 3).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      }
-      
-      // Column 4: pattern
-      if (row.tag) {
-        worksheet.getCell(rowNumber, 4).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      }
-      
-      // Column 5: model_result - always has value (TRUE/FALSE)
-      worksheet.getCell(rowNumber, 5).alignment = { vertical: 'middle', horizontal: 'center' };
-      
-      // Column 6: notes
-      if (row.notes) {
-        worksheet.getCell(rowNumber, 6).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      }
     }
 
     // Generate filename with timestamp (KST, 한국시간)

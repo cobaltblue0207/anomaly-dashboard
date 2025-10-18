@@ -1,208 +1,269 @@
-# Timeseries Dashboard
+# Time Series Anomaly Detection Dashboard
 
-React + FastAPI + SQLite 기반 시계열 데이터 대시보드
+A comprehensive web application for analyzing time series data with anomaly detection capabilities, featuring interactive charts, data filtering, and collaborative note-taking functionality.
 
-## 📋 프로젝트 구조
+## 🏗️ Architecture Overview
+
+This project consists of a **FastAPI backend** and a **React TypeScript frontend** that work together to provide a powerful data analysis platform.
+
+### System Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   Data Storage  │
+│   (React TS)    │◄──►│   (FastAPI)     │◄──►│   (Parquet)     │
+│                 │    │                 │    │                 │
+│ • Dashboard     │    │ • API Endpoints │    │ • Chart Data    │
+│ • Charts        │    │ • Data Loading  │    │ • Notes DB      │
+│ • Notes         │    │ • Notes API     │    │ • Filter Data   │
+│ • Excel Export  │    │ • CORS Support  │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 📁 Project Structure
 
 ```
 ts_f/
-├── api.py                      # FastAPI 백엔드 서버
-├── data_loader.py              # Parquet 데이터 로딩 및 필터링
-├── db.py                       # SQLite Notes CRUD
-├── requirements.txt            # Python 의존성
-├── notes.db                    # SQLite 데이터베이스
-├── all_groups_parquet/         # Parquet 데이터 파일 (2900개)
-├── frontend/                   # React 프론트엔드
+├── backend/                    # FastAPI Backend
+│   ├── api.py                 # Main API server
+│   ├── db.py                  # Database operations
+│   ├── data_loader.py         # Parquet data loading
+│   ├── notes.db               # SQLite notes database
+│   └── temp/chart_data/       # Parquet data files (100 tasks)
+├── frontend/                   # React TypeScript Frontend
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── DashboardTable.tsx
-│   │   │   └── UserIdModal.tsx
-│   │   ├── pages/
-│   │   │   └── App.tsx
-│   │   ├── services/
-│   │   │   └── data.ts
-│   │   ├── styles/
-│   │   │   └── modal.css
-│   │   ├── styles.css
-│   │   └── main.tsx
-│   ├── package.json
-│   └── tsconfig.json
-└── etc/                        # 구버전 Streamlit 관련 파일들
+│   │   ├── components/        # React components
+│   │   │   ├── charts/       # Chart components
+│   │   │   ├── table/        # Table components
+│   │   │   └── *.tsx         # UI components
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API services
+│   │   ├── styles/           # CSS styles
+│   │   ├── types/            # TypeScript types
+│   │   └── utils/            # Utility functions
+│   ├── package.json          # Node.js dependencies
+│   └── tsconfig.json         # TypeScript config
+├── chart_data/               # Main data directory
+│   └── TASK*.parquet         # Time series data files
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
-## 🚀 시작하기
+## 🚀 Quick Start
 
-### 1. 백엔드 실행
+### Prerequisites
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
 
+### Backend Setup
 ```bash
-# Python 의존성 설치
+# Install Python dependencies
 pip install -r requirements.txt
 
-# FastAPI 서버 실행
-uvicorn api:app --host 115.136.116.145 --port 8050
+# Start the FastAPI server
+cd backend
+python api.py
 ```
+The backend will be available at `http://localhost:8050`
 
-### 2. 프론트엔드 실행
-
+### Frontend Setup
 ```bash
+# Install Node.js dependencies
 cd frontend
-
-# Node.js 의존성 설치
 npm install
 
-# 개발 서버 실행
+# Start the development server
 npm run dev
 ```
+The frontend will be available at `http://localhost:5173`
 
-## 🔧 주요 기능
+## 🎯 Key Features
 
-### 데이터 조회
-- **LINE**: 다중 선택 가능
-- **AREA, SENSORS, PATTERNS**: 단일 선택
-- **AI_RESULT**: TRUE/FALSE 필터링
-- **PERIOD**: 날짜 범위 지정
+### 📊 Interactive Data Visualization
+- **Time Series Charts**: 30-day and 60-day interactive charts using ECharts
+- **Lazy Loading**: Charts load on-demand for better performance
+- **Interactive Mode**: Click to activate zoom/pan controls
+- **Static Mode**: Fast rendering for overview
 
-### 데이터 시각화
-- **ECharts** 기반 인터랙티브 차트
-- 8방향 Pan & Zoom (마우스 휠)
-- Spec Band (연두색 영역)
-- Interlock Points (빨강/파랑)
+### 🔍 Advanced Filtering
+- **Multi-dimensional Filters**: Line, Area, Equipment, Parameter filtering
+- **Real-time Search**: Instant filtering as you type
+- **Pagination**: Efficient data browsing with configurable page sizes
+- **Caching**: Smart caching for improved performance
 
-### Notes 관리
-- **User ID 기반 권한**: 세션 User ID 필수 입력
-- **복합 키**: `(user_id, variant_id)` 기반 CRUD
-- **Auto-save**: Input box에서 나갈 때 자동 저장
-- **Manual save**: Save 버튼으로 수동 저장
-- **작성자/수정자 추적**: `created_by`, `updated_by` 기록
+### 📝 Collaborative Notes System
+- **Multi-line Notes**: Rich text input with line breaks
+- **User Attribution**: Track who created/updated notes
+- **Real-time Saving**: Auto-save on blur events
+- **Metadata Display**: Show creation/update timestamps
 
-### 테이블 기능 (TanStack Table)
-- Column 정렬 (Sorting)
-- Column 필터링 (Filtering)
-- Column 순서 변경 (Drag & Drop)
-- Column 표시/숨김 (Visibility Toggle)
-- Column Auto-fit (헤더 더블클릭)
+### 📋 Data Management
+- **Excel Export**: Export data with charts and notes to Excel
+- **Column Management**: Show/hide, reorder, and pin columns
+- **Responsive Design**: Works on desktop and mobile devices
+- **Performance Optimized**: Efficient data loading and rendering
 
-## 📊 성능 최적화
+## 🛠️ Technical Stack
 
-### 백엔드
-- **선택적 파일 로딩**: 필터 조건에 맞는 Parquet 파일만 로드
-- **서버 측 다운샘플링**: 4000개 포인트로 제한
-- **GZip 압축**: 응답 데이터 압축 전송
-- **성능 메트릭**: `load_ms`, `filter_ms`, `aggregate_ms`, `paginate_ms` 제공
+### Backend Technologies
+- **FastAPI**: Modern Python web framework
+- **Pandas**: Data manipulation and analysis
+- **SQLite**: Lightweight database for notes
+- **Parquet**: Efficient columnar data format
+- **Pydantic**: Data validation and serialization
 
-### 프론트엔드
-- **React Query**: 데이터 캐싱 및 자동 갱신
-- **ECharts Canvas 렌더링**: WebGL 대비 안정적
-- **Uncontrolled Components**: Notes 입력 시 포커스 유지
+### Frontend Technologies
+- **React 18**: Modern React with hooks
+- **TypeScript**: Type-safe JavaScript
+- **TanStack Table**: Powerful table component
+- **ECharts**: Interactive charting library
+- **React Query**: Data fetching and caching
+- **ExcelJS**: Excel file generation
 
-## 🗄️ 데이터베이스 스키마
+### Key Libraries
+- **React Query**: Server state management
+- **React Hook Form**: Form handling
+- **Axios**: HTTP client
+- **Tailwind CSS**: Utility-first CSS framework
 
-### Notes 테이블
-```sql
-CREATE TABLE notes (
-    user_id TEXT NOT NULL,
-    variant_id TEXT NOT NULL,
-    note TEXT,
-    created_at TEXT,
-    created_by TEXT,
-    updated_at TEXT,
-    updated_by TEXT,
-    PRIMARY KEY (user_id, variant_id)
-);
-```
+## 📊 Data Schema
 
-## 📝 API 엔드포인트
-
-### `GET /health`
-서버 상태 확인
-
-### `GET /filters/options`
-사용가능한 필터 옵션 반환
-
-### `POST /data/query`
-데이터 조회 및 필터링
-```json
-{
-  "filters": {
-    "line": "11",
-    "area": "CLN",
-    "sensors": "Sensor1",
-    "patterns": "ALL",
-    "ai_result": "ALL",
-    "period_from": "2025-01-01",
-    "period_to": "2025-01-31"
-  },
-  "page": 1,
-  "page_size": 10
+### V2 Schema (Current)
+```typescript
+interface TaskData {
+  MASTER_TASK_ID: string;      // Primary identifier
+  LINE: string;               // Production line
+  AREA: string;               // Area code
+  PROD_EQP_ID: string;        // Equipment ID
+  PARAM_SUBITEM: string;      // Parameter name
+  PPID: string;               // Process ID
+  RECIPEID: string;           // Recipe ID
+  CH_STEP: string;            // Step number
+  MODEL_RESULT_INFO: string;  // AI result
+  COMMENTS: string;           // Comments
+  plot_data: {               // Chart data
+    act_date: number[];       // Timestamps
+    value: number[];          // Values
+    spec_lower: number[];     // Lower spec
+    spec_upper: number[];     // Upper spec
+  };
 }
 ```
 
-### `POST /notes/load`
-Notes 조회
-```json
-{
-  "user_id": "user_a",
-  "variant_ids": ["11/CMP/Sensor1/swing/0", "..."]
+### Notes Schema
+```typescript
+interface NoteData {
+  note: string;              // Note content
+  created_at: string;        // Creation timestamp
+  updated_at: string;        // Update timestamp
+  created_by: string;        // Creator user ID
+  updated_by: string;        // Last updater user ID
 }
 ```
 
-### `POST /notes/save`
-Notes 저장
-```json
-{
-  "user_id": "user_a",
-  "variant_id": "11/CMP/Sensor1/swing/0",
-  "note": "Test note",
-  "current_session_user": "user_a"
-}
+## 🔧 API Endpoints
+
+### Data Endpoints
+- `GET /filters/options` - Get available filter options
+- `POST /data/query` - Query data with filters and pagination
+- `GET /data/chart/{task_id}` - Get chart data for specific task
+
+### Notes Endpoints
+- `POST /notes/save` - Save a note
+- `POST /notes/load` - Load notes for multiple tasks
+- `GET /notes/load/{user_id}` - Load all notes for a user
+
+## 🎨 UI Components
+
+### Core Components
+- **DashboardTable**: Main data table with sorting, filtering, pagination
+- **LazyChart**: Interactive time series charts
+- **NotesInput**: Multi-line notes input with auto-save
+- **ColumnSettingsModal**: Column management interface
+- **UserIdModal**: User authentication modal
+
+### Chart Features
+- **Static Mode**: Fast rendering for overview
+- **Interactive Mode**: Zoom, pan, and data exploration
+- **Lazy Loading**: Load charts on-demand
+- **Progress Tracking**: Visual loading progress
+
+## 📈 Performance Optimizations
+
+### Frontend Optimizations
+- **React.memo**: Prevent unnecessary re-renders
+- **Lazy Loading**: Load charts only when needed
+- **Caching**: React Query for data caching
+- **Debouncing**: Optimize search and input handling
+- **Virtual Scrolling**: Efficient large dataset rendering
+
+### Backend Optimizations
+- **Parquet Format**: Efficient columnar storage
+- **Pagination**: Limit data transfer
+- **Caching**: Smart data caching
+- **Compression**: Gzip middleware for responses
+
+## 🔒 Security Features
+
+- **CORS Configuration**: Secure cross-origin requests
+- **Input Validation**: Pydantic models for data validation
+- **SQL Injection Prevention**: Parameterized queries
+- **XSS Protection**: Sanitized user inputs
+
+## 📱 Responsive Design
+
+- **Mobile-First**: Optimized for mobile devices
+- **Flexible Layout**: Adapts to different screen sizes
+- **Touch-Friendly**: Optimized for touch interactions
+- **Accessibility**: WCAG compliant design
+
+## 🚀 Deployment
+
+### Production Considerations
+- **Environment Variables**: Secure configuration management
+- **Database Migration**: Schema versioning
+- **Performance Monitoring**: Track API response times
+- **Error Handling**: Comprehensive error logging
+- **Security Headers**: HTTPS and security headers
+
+### Docker Support
+```dockerfile
+# Backend Dockerfile
+FROM python:3.9-slim
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "api.py"]
+
+# Frontend Dockerfile
+FROM node:16-alpine
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+CMD ["npm", "run", "preview"]
 ```
 
-## 🛠️ 기술 스택
+## 🤝 Contributing
 
-### 백엔드
-- **FastAPI**: 고성능 Python 웹 프레임워크
-- **Pandas**: 데이터 처리
-- **SQLite**: 경량 데이터베이스
-- **Pydantic**: 데이터 검증
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-### 프론트엔드
-- **React 18**: UI 라이브러리
-- **TypeScript**: 타입 안정성
-- **Vite**: 빌드 도구
-- **TanStack Table**: 고급 테이블 기능
-- **TanStack Query**: 데이터 페칭 및 캐싱
-- **ECharts**: 차트 라이브러리
-- **Axios**: HTTP 클라이언트
+## 📄 License
 
-## 📂 etc/ 폴더
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-구버전 Streamlit 기반 구현 및 관련 문서:
-- `app.py`: Streamlit 메인 앱
-- `chart_utils.py`: Plotly 차트 유틸리티
-- `ui_components.py`: Streamlit UI 컴포넌트
-- `utils.py`: 기타 유틸리티
-- `timeseries_dataset_generator.py`: 데이터 생성 스크립트
-- `test.ipynb`: 테스트 노트북
-- 각종 마크다운 문서
+## 🆘 Support
 
-## 🐛 트러블슈팅
+For support and questions:
+- Check the documentation in the `/md` directory
+- Review the API documentation at `/docs` endpoint
+- Create an issue in the repository
 
-### Notes 입력 시 포커스가 빠지는 문제
-**원인**: `useMemo` dependency에 `drafts` state가 포함되어 매 입력마다 columns 재생성
+---
 
-**해결**: 
-- `useRef`로 `draftsRef` 생성
-- Uncontrolled textarea (`defaultValue`) 사용
-- `useMemo` dependency에서 `drafts` 제거
-
-### Chart 렌더링 성능 문제
-**원인**: 너무 많은 데이터 포인트
-
-**해결**:
-- 서버 측에서 4000개로 다운샘플링
-- ECharts `progressive` 렌더링 활성화
-
-## 📄 라이선스
-
-MIT License
-
+**Built with ❤️ using React, TypeScript, FastAPI, and modern web technologies.**

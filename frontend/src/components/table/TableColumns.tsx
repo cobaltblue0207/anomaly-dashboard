@@ -2,26 +2,90 @@ import ReactECharts from "echarts-for-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { LazyChart } from "../charts/LazyChart";
 import { buildOption } from "../charts/chartOptions";
+import NotesInput from "../NotesInput";
+
+// Common column configuration
+const createBasicColumn = (columnHelper: any, accessor: string, config: {
+  id: string;
+  header: string;
+  size: number;
+  minSize?: number;
+  maxSize?: number;
+  enableSorting?: boolean;
+  enableColumnFilter?: boolean;
+  cell?: any;
+}) => {
+  const columnConfig: any = {
+    id: config.id,
+    header: config.header,
+    size: config.size,
+    minSize: config.minSize,
+    maxSize: config.maxSize,
+    enableSorting: config.enableSorting ?? true,
+    enableColumnFilter: config.enableColumnFilter ?? true,
+  };
+
+  // Only add cell if it's provided, otherwise let TanStack Table handle default rendering
+  if (config.cell) {
+    columnConfig.cell = config.cell;
+  }
+
+  return columnHelper.accessor(accessor, columnConfig);
+};
+
+// Chart column creation helper
+const createChartColumn = (
+  columnHelper: any, 
+  accessor: string, 
+  header: string, 
+  days: number, 
+  activeChartId: string | null, 
+  handleChartActivation: (chartId: string) => void,
+  onLoadingStart?: (chartId: string) => void,
+  onLoadingFinish?: (chartId: string) => void,
+  isAllChartsCompleted?: boolean
+) => {
+  return createBasicColumn(columnHelper, accessor, {
+    id: accessor,
+    header,
+    size: 600,
+    minSize: 500,
+    maxSize: 1500,
+    enableSorting: false,
+    enableColumnFilter: false,
+    cell: (info: any) => {
+      const taskId = info.row.original.MASTER_TASK_ID || info.row.original.variant_id;
+      const chartId = `${taskId}-${days}d`;
+      const isActive = activeChartId === chartId;
+      
+      return (
+        <LazyChart 
+          taskId={taskId} 
+          days={days} 
+          dataAttr={chartId}
+          isActive={isActive}
+          onActivate={() => handleChartActivation(chartId)}
+          onLoadingStart={onLoadingStart}
+          onLoadingFinish={onLoadingFinish}
+          isAllChartsCompleted={isAllChartsCompleted}
+        />
+      );
+    },
+  });
+};
 
 export function createTableColumns(
-  isV2Schema: boolean,
   activeChartId: string | null,
-  handleChartActivation: (chartId: string) => void
+  handleChartActivation: (chartId: string) => void,
+  onLoadingStart?: (chartId: string) => void,
+  onLoadingFinish?: (chartId: string) => void,
+  isAllChartsCompleted?: boolean,
+  notesData?: Record<string, string>,
+  onNotesUpdate?: (rowId: string, value: string) => void
 ) {
   const columnHelper = createColumnHelper<any>();
-
-  if (isV2Schema) {
     return [
-      // 1. No
-      columnHelper.accessor("no", {
-        id: "no",
-        header: "No",
-        size: 60,
-        enableSorting: true,
-        enableColumnFilter: false,
-      }),
-
-      // 2. MASTER_TASK_ID
+      // 1. MASTER_TASK_ID
       columnHelper.accessor("MASTER_TASK_ID", {
         id: "MASTER_TASK_ID",
         header: "Task ID",
@@ -29,8 +93,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 3. LINE
+      
+      // 2. LINE
       columnHelper.accessor("LINE", {
         id: "LINE",
         header: "Line",
@@ -38,8 +102,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 4. AREA
+      
+      // 3. AREA
       columnHelper.accessor("AREA", {
         id: "AREA",
         header: "Area",
@@ -47,8 +111,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 5. PROD_EQP_ID
+      
+      // 4. EQUIPMENT
       columnHelper.accessor("PROD_EQP_ID", {
         id: "PROD_EQP_ID",
         header: "Equipment",
@@ -56,8 +120,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 6. PARAM_SUBITEM
+      
+      // 5. PARAMETER
       columnHelper.accessor("PARAM_SUBITEM", {
         id: "PARAM_SUBITEM",
         header: "Parameter",
@@ -65,8 +129,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 7. PPID
+      
+      // 6. PPID
       columnHelper.accessor("PPID", {
         id: "PPID",
         header: "PPID",
@@ -74,8 +138,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 8. RECIPEID
+      
+      // 7. RECIPEID
       columnHelper.accessor("RECIPEID", {
         id: "RECIPEID",
         header: "Recipe",
@@ -83,8 +147,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 9. CH_STEP
+      
+      // 8. CH_STEP
       columnHelper.accessor("CH_STEP", {
         id: "CH_STEP",
         header: "Step",
@@ -92,8 +156,8 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 10. MODEL_RESULT_INFO
+      
+      // 9. AI_RESULT
       columnHelper.accessor("MODEL_RESULT_INFO", {
         id: "MODEL_RESULT_INFO",
         header: "AI Result",
@@ -101,60 +165,17 @@ export function createTableColumns(
         enableSorting: true,
         enableColumnFilter: true,
       }),
-
-      // 11. 30D Chart
-      columnHelper.accessor("30D", {
-        id: "30D",
-        header: "30D Chart",
-        size: 600,
-        minSize: 500,
-        maxSize: 1500,
-        enableSorting: false,
-        enableColumnFilter: false,
-        cell: (info) => {
-          const taskId = info.row.original.MASTER_TASK_ID || info.row.original.variant_id;
-          const chartId = `${taskId}-30d`;
-          const isActive = activeChartId === chartId;
-          
-          return (
-            <LazyChart 
-              taskId={taskId} 
-              days={30} 
-              dataAttr={chartId}
-              isActive={isActive}
-              onActivate={() => handleChartActivation(chartId)}
-            />
-          );
-        },
-      }),
-
-      // 12. 60D Chart
-      columnHelper.accessor("60D", {
-        id: "60D",
-        header: "60D Chart",
-        size: 600,
-        minSize: 500,
-        maxSize: 1500,
-        enableSorting: false,
-        enableColumnFilter: false,
-        cell: (info) => {
-          const taskId = info.row.original.MASTER_TASK_ID || info.row.original.variant_id;
-          const chartId = `${taskId}-60d`;
-          const isActive = activeChartId === chartId;
-          
-          return (
-            <LazyChart 
-              taskId={taskId} 
-              days={60} 
-              dataAttr={chartId}
-              isActive={isActive}
-              onActivate={() => handleChartActivation(chartId)}
-            />
-          );
-        },
-      }),
-
-      // 13. COMMENTS
+      
+      // 10. AI_INFERENCE_RESULT (추가 컬럼이 필요하면 여기에 추가)
+      // columnHelper.accessor("AI_INFERENCE_RESULT", {
+      //   id: "AI_INFERENCE_RESULT",
+      //   header: "AI Inference",
+      //   size: 120,
+      //   enableSorting: true,
+      //   enableColumnFilter: true,
+      // }),
+      
+      // 11. COMMENTS
       columnHelper.accessor("COMMENTS", {
         id: "COMMENTS",
         header: "Comments",
@@ -162,139 +183,41 @@ export function createTableColumns(
         enableSorting: false,
         enableColumnFilter: true,
       }),
-
+      
+      // 12. 30d Chart
+      createChartColumn(columnHelper, "30D", "30D Chart", 30, activeChartId, handleChartActivation, onLoadingStart, onLoadingFinish, isAllChartsCompleted),
+      
+      // 13. 60d Chart
+      createChartColumn(columnHelper, "60D", "60D Chart", 60, activeChartId, handleChartActivation, onLoadingStart, onLoadingFinish, isAllChartsCompleted),
+      
       // 14. NOTES
       columnHelper.accessor("NOTES", {
         id: "NOTES",
         header: "Notes",
-        size: 200,
+        size: 300,
         enableSorting: false,
         enableColumnFilter: true,
-      }),
-    ];
-  } else {
-    // Legacy schema columns
-    return [
-      columnHelper.accessor("no", {
-        id: "no",
-        header: "No",
-        size: 60,
-        enableSorting: true,
-        enableColumnFilter: false,
-      }),
-      columnHelper.accessor("sensor", {
-        id: "sensor",
-        header: "Sensor",
-        size: 100,
-        enableSorting: true,
-        enableColumnFilter: true,
-      }),
-      columnHelper.accessor("machine", {
-        id: "machine",
-        header: "Machine",
-        size: 120,
-        enableSorting: true,
-        enableColumnFilter: true,
-      }),
-      columnHelper.accessor("tag", {
-        id: "tag",
-        header: "Tag",
-        size: 100,
-        enableSorting: true,
-        enableColumnFilter: true,
-      }),
-      columnHelper.accessor("variant_id", {
-        id: "variant_id",
-        header: "Variant ID",
-        size: 100,
-        enableSorting: true,
-        enableColumnFilter: true,
-      }),
-      columnHelper.accessor("model_result", {
-        id: "model_result",
-        header: "Model Result",
-        size: 100,
-        enableSorting: true,
-        enableColumnFilter: true,
-        cell: (info) => (
-          <span style={{ 
-            color: info.getValue() ? "var(--success-color)" : "var(--error-color)",
-            fontWeight: "bold"
-          }}>
-            {info.getValue() ? "TRUE" : "FALSE"}
-          </span>
-        ),
-      }),
-      columnHelper.accessor("plot_data", {
-        id: "plot_data",
-        header: "Chart",
-        size: 600,
-        minSize: 500,
-        maxSize: 1500,
-        enableSorting: false,
-        enableColumnFilter: false,
-        cell: (info) => {
-          const variantId = info.row.original.variant_id;
-          const chartId = `legacy-${variantId}`;
-          const isActive = activeChartId === chartId;
+        cell: (info: any) => {
+          const rowId = info.row.original.MASTER_TASK_ID || info.row.id;
+          const noteData = notesData?.[rowId];
+          const currentValue = typeof noteData === 'object' ? (noteData as any).note || '' : noteData || info.getValue() || '';
+          const noteInfo = noteData && typeof noteData === 'object' ? {
+            created_at: (noteData as any).created_at,
+            updated_at: (noteData as any).updated_at,
+            created_by: (noteData as any).created_by,
+            updated_by: (noteData as any).updated_by
+          } : undefined;
           
           return (
-            <div 
-              data-variant-id={variantId}
-              onClick={() => handleChartActivation(chartId)}
-              style={{
-                cursor: "pointer",
-                border: isActive ? "2px solid var(--primary)" : "2px solid transparent",
-                borderRadius: "4px",
-                transition: "border-color 0.2s ease",
-                position: "relative"
-              }}
-            >
-              {/* Active state indicator */}
-              {isActive && (
-                <div style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  background: "var(--primary)",
-                  color: "white",
-                  padding: "2px 6px",
-                  borderRadius: "3px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  zIndex: 10
-                }}>
-                  ACTIVE
-                </div>
-              )}
-              
-              <ReactECharts
-                style={{
-                  height: 300,
-                  width: "100%",
-                  minWidth: 500,
-                }}
-                option={buildOption(info.row.original, isActive)}
-                opts={{ 
-                  renderer: "canvas"
-                }}
-                notMerge={false}
-                lazyUpdate
-                onEvents={{
-                  click: (e: any) => {
-                    e.stopPropagation();
-                    handleChartActivation(chartId);
-                  },
-                  ...(isActive ? {
-                    mousewheel: (e: any) => e.stopPropagation(),
-                    mousemove: (e: any) => e.stopPropagation(),
-                  } : {})
-                }}
-              />
-            </div>
+            <NotesInput 
+              key={`notes-${rowId}`}
+              rowId={rowId}
+              initialValue={currentValue}
+              onUpdate={onNotesUpdate}
+              noteInfo={noteInfo}
+            />
           );
         },
       }),
     ];
-  }
 }
