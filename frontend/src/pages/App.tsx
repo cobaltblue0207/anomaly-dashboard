@@ -64,7 +64,7 @@ export function App() {
     }
   }, [options]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [pageSize, setPageSize] = useState(10);
   
   // Chart progress state
   const [chartProgress, setChartProgress] = useState({
@@ -388,7 +388,7 @@ export function App() {
               setPage(1); // 페이지 크기 변경 시 첫 페이지로 이동
             }}
           >
-            {[30, 40, 50, 100].map((n) => (
+            {[10, 20, 30, 50].map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
